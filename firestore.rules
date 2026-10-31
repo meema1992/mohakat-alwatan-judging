@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAdmin() {
+      return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    function isJudge() { return signedIn() && request.auth.token.role == 'judge'; }
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid || isAdmin();
+      allow write: if isAdmin();
+    }
+    match /participants/{id} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+    match /judges/{code} {
+      allow read, write: if isAdmin();
+    }
+    match /evaluations/{id} {
+      allow read: if isAdmin() || (isJudge() && resource.data.judgeUid == request.auth.uid);
+      allow write: if false; // الحفظ يتم عبر Cloud Function موثوقة فقط.
+    }
+    match /publicResults/{id} {
+      allow read: if resource.data.published == true;
+      allow write: if false; // النشر يتم عبر Cloud Function فقط.
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "mohakat-alwatan-functions",
+  "description": "Secure judging platform callable functions",
+  "main": "index.js",
+  "engines": {"node": "20"},
+  "dependencies": {"firebase-admin": "^12.7.0", "firebase-functions": "^6.1.1"}
+}
