@@ -1,5 +1,5 @@
 window.FIREBASE_CONFIG = {
-  apiKey: "AIzaSyBNAX6ILWbAJLyK0y6e5IwXszZqEpzQQdU",
+  apiKey: "AIzaSyBNAX6IlWbAJLyK0y6e5IwXszZqEpzQQdU",
   authDomain: "mohakat-alwatan-judging.firebaseapp.com",
   projectId: "mohakat-alwatan-judging",
   storageBucket: "mohakat-alwatan-judging.firebasestorage.app",
