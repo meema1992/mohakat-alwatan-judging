@@ -2,59 +2,48 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
-    function userDoc(uid) {
-      return get(/databases/$(database)/documents/users/$(uid));
-    }
     function isAdmin() {
-      return signedIn() &&
-        userDoc(request.auth.uid).data.role == 'admin';
-    }
-    function isJudge() {
-      return signedIn() &&
-        userDoc(request.auth.uid).data.role == 'judge' &&
-        userDoc(request.auth.uid).data.active != false;
-    }
-    function validScores(scores) {
-      return scores is list &&
-        scores.size() == 16 &&
-        scores.hasOnly([0, 1, 2, 3, 4, 5, 6]);
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     match /users/{uid} {
-      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
-      allow create, update, delete: if isAdmin();
+      allow read: if signedIn() && request.auth.uid == uid || isAdmin();
+      allow write: if false;
     }
 
+    // قائمة المشاركين ظاهرة للزوار ولأعضاء اللجنة، والتعديل للإدارة فقط.
     match /participants/{id} {
-      allow read: if signedIn();
+      allow read: if true;
       allow create, update, delete: if isAdmin();
     }
 
-    match /judges/{id} {
-      allow read, write: if isAdmin();
-    }
-
+    // التقييمات أرقام ومعايير فقط؛ قراءتها مطلوبة لحساب لوحة النتائج مباشرة.
+    // أي مستخدم مسجل دخول مجهولًا يستطيع إضافة تقييم جديد، ولا يستطيع تعديله أو حذفه.
     match /evaluations/{id} {
-      allow read: if isAdmin() ||
-        (isJudge() && resource.data.judgeUid == request.auth.uid);
-      allow create, update: if isJudge() &&
-        request.resource.data.judgeUid == request.auth.uid &&
-        request.resource.data.participantId is string &&
-        id == request.resource.data.participantId + '_' + request.auth.uid &&
-        validScores(request.resource.data.scores) &&
-        exists(/databases/$(database)/documents/participants/$(request.resource.data.participantId)) &&
-        get(/databases/$(database)/documents/participants/$(request.resource.data.participantId)).data.status != 'not_submitted';
-      allow delete: if false;
-    }
-
-    match /settings/{id} {
-      allow read: if isAdmin();
-      allow create, update, delete: if isAdmin();
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasAll([
+          'participantId', 'participantName', 'scores',
+          'rawTotal', 'normalized', 'createdAt'
+        ])
+        && request.resource.data.scores is list
+        && request.resource.data.scores.size() == 16
+        && request.resource.data.rawTotal is number
+        && request.resource.data.rawTotal >= 0
+        && request.resource.data.rawTotal <= 96
+        && request.resource.data.normalized is number
+        && request.resource.data.normalized >= 0
+        && request.resource.data.normalized <= 100
+        && request.resource.data.createdAt == request.time
+        && exists(/databases/$(database)/documents/participants/$(request.resource.data.participantId));
+      allow update, delete: if false;
     }
 
     match /publicResults/{id} {
-      allow read: if resource.data.published == true || isAdmin();
-      allow create, update, delete: if isAdmin();
+      allow read: if true;
+      allow write: if false;
     }
   }
 }
